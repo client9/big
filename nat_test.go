@@ -389,7 +389,7 @@ func benchmarkNatMul(b *testing.B, nwords int) {
 	}
 }
 
-var mulBenchSizes = []int{10, 100, 1000, 10000, 100000}
+var mulBenchSizes = []int{10, 100, 1000, 2500, 5000, 10000, 100000, 1000000}
 
 func BenchmarkNatMul(b *testing.B) {
 	for _, n := range mulBenchSizes {
