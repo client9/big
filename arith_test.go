@@ -9,7 +9,6 @@ package big
 
 import (
 	"fmt"
-	"internal/testenv"
 	"iter"
 	"math/bits"
 	"math/rand/v2"
@@ -18,7 +17,7 @@ import (
 	"testing"
 )
 
-var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
+var isRaceBuilder = false
 
 var words4 = []Word{0, 1, _M - 1, _M}
 var words2 = []Word{0, _M}

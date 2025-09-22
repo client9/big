@@ -15,7 +15,6 @@ package big
 import (
 	"flag"
 	"fmt"
-	"internal/sysinfo"
 	"math"
 	"runtime"
 	"slices"
@@ -105,7 +104,6 @@ func computeThreshold(t *testing.T, name string, set func(int), thresholdLo, thr
 
 	fmt.Printf("goos,%s\n", runtime.GOOS)
 	fmt.Printf("goarch,%s\n", runtime.GOARCH)
-	fmt.Printf("cpu,%s\n", sysinfo.CPUName())
 	fmt.Printf("calibrate,%s\n", name)
 
 	// Expand lists of sizes and thresholds we will test.

@@ -5,7 +5,6 @@
 package big
 
 import (
-	"internal/testenv"
 	"math/rand"
 	"os/exec"
 	"strings"
@@ -13,7 +12,6 @@ import (
 )
 
 func TestEscape(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
 	// The multiplication routines create many temporary Int values,
 	// expecting them to be stack-allocated. Make sure none escape to the heap.
 	out, err := exec.Command("go", "build", "-gcflags=-m").CombinedOutput()
