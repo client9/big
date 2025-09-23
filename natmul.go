@@ -39,15 +39,15 @@ func (z nat) mul(stk *stack, x, y nat) nat {
 		return z.norm()
 	}
 
-	// use fft instead. Turn off with threshold of 0
-	if fftThreshold > 0 && n >= fftThreshold {
-		z = fftMul(z, x, y)
-		return z
-	}
-
 	if stk == nil {
 		stk = getStack()
 		defer stk.free()
+	}
+
+	// use fft instead. Turn off with threshold of 0
+	if fftThreshold > 0 && n >= fftThreshold {
+		z = fftMul(stk, z, x, y)
+		return z
 	}
 
 	// Let x = x1:x0 where x0 is the same length as y.

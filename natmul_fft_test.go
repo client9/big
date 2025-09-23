@@ -25,7 +25,7 @@ func FuzzNatMulFFT(f *testing.F) {
 		a := randnat(r, r.IntN(100))
 		b := randnat(r, r.IntN(100))
 		z := nat{}
-		z = fftMul(z, a, b)
+		z = fftMul(nil, z, a, b)
 		if z.cmp(testMul(a, b)) != 0 {
 			t.Errorf("%s x %s failure", a.String(), b.String())
 		}

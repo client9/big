@@ -13,7 +13,7 @@ func local_shlVU(z, x []Word, s uint) (c Word) {
 
 // References to A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen", Computing 7 (1971), pp. 281–292.
 // and https://en.wikipedia.org/wiki/Sch%C3%B6nhage%E2%80%93Strassen_algorithm#Convolution_theorem
-func fftMul(z, x, y nat) nat {
+func fftMul(stk *stack, z, x, y nat) nat {
 	xl := len(x)
 	yl := len(y)
 	var n, k, i int
@@ -97,11 +97,14 @@ func fftMul(z, x, y nat) nat {
 
 	// term multiplications (mod 2^Nprime+1)
 	tp := T[:2*nprime]
+
+	t := nat(nil)
+
 	var cc Word
 	for i := 0; i < K; i++ {
 		a := Ap[i]
 		b := Bp[i]
-		t := nat(nil).mul(nil, a[:nprime], b[:nprime])
+		t = t.mul(stk, a[:nprime], b[:nprime])
 		clear(tp)
 		copy(tp, t)
 		if a[nprime] != 0 {
