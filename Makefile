@@ -4,6 +4,9 @@ build:
 test:
 	go test .
 
+fuzz:
+	go test -fuzz=NatMulFFT
+
 # runs the Net multiplication test
 bench:
 	go test -bench NatMul -benchmem
