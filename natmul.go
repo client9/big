@@ -40,7 +40,7 @@ func (z nat) mul(stk *stack, x, y nat) nat {
 	}
 
 	// use fft instead. Turn off with threshold of 0
-	if fftThreshold > 0 && n > fftThreshold {
+	if fftThreshold > 0 && n >= fftThreshold {
 		z = fftMul(z, x, y)
 		return z
 	}

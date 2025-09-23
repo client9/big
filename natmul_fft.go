@@ -1,13 +1,6 @@
 package big
 
-var fftThreshold = 0
-
-// removed.. I assume replaced with native 'clear'
-func (z nat) clear() {
-	for i := range z {
-		z[i] = 0
-	}
-}
+var fftThreshold = 2500
 
 // shlVU is obsolete,but existing lshVU doesn't handle s==0 case?
 func local_shlVU(z, x []Word, s uint) (c Word) {
@@ -109,7 +102,7 @@ func fftMul(z, x, y nat) nat {
 		a := Ap[i]
 		b := Bp[i]
 		t := nat(nil).mul(nil, a[:nprime], b[:nprime])
-		tp.clear()
+		clear(tp)
 		copy(tp, t)
 		if a[nprime] != 0 {
 			cc = addVV(tp[nprime:2*nprime], tp[nprime:2*nprime], b[:nprime])
@@ -135,12 +128,12 @@ func fftMul(z, x, y nat) nat {
 
 	// division of terms after inverse fft
 	for i = 0; i < K; i++ {
-		Bp[i].clear()
+		clear(Bp[i])
 		mul2ExpMod(Bp[i], Ap[i], 2*Nprime-k, nprime)
 		if Bp[i][nprime] != 0 {
 			cc = subVW(Bp[i][:nprime], Bp[i][:nprime], 1)
 			if cc != 0 { // only when Bp[i] = 2^Nprime
-				Bp[i][:nprime].clear()
+				clear(Bp[i][:nprime])
 				Bp[i][nprime] = 1
 			} else {
 				Bp[i][nprime] = 0
@@ -151,7 +144,7 @@ func fftMul(z, x, y nat) nat {
 	// addition of terms in result p
 	pla := l*(K-1) + nprime + 1
 	p := A[:pla]
-	p.clear()
+	clear(p)
 	i = K - 1
 	sh := l * i
 	for ; i >= 0; i-- {
