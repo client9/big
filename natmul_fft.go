@@ -124,7 +124,6 @@ func fftMul(z, x, y nat) nat {
 
 	// inverse fft
 	inverseFFT(Ap, K, 2*Mp, nprime, T)
-	//fmt.Println("逆fft后：",Ap)
 
 	// division of terms after inverse fft
 	for i = 0; i < K; i++ {
@@ -158,7 +157,7 @@ func fftMul(z, x, y nat) nat {
 	return z.norm()
 }
 
-// caculate FFT of Ap.
+// calculate FFT of Ap.
 // K <- number of terms of current layer.
 // ll <- order of fft.
 // layer <- the current number of fft layers.
@@ -189,7 +188,7 @@ func fftMul(z, x, y nat) nat {
 //
 // So we successfully divided the problem into two half-length sub-problems.
 //
-// directFFT caculate FFT(Ap,K,1) and arrange the items in fft order in Ap.
+// directFFT calculates FFT(Ap,K,1) and arranges the items in fft order in Ap.
 func directFFT(Ap []nat, K int, ll [][]int, layer int, omega int, n int, inc int, tp nat) {
 	if K == 2 {
 		copy(tp[:n+1], Ap[0][:n+1])
