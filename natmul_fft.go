@@ -58,10 +58,7 @@ func fftMul(stk *stack, z, x, y nat) nat {
 		}
 	}
 	// get prime for fft which is 2^Nprime+1.
-	maxLK := _W // ensure Nprime%_W = 0
-	if maxLK < K {
-		maxLK = K
-	}
+	maxLK := max(K, _W)                     // ensure Nprime%_W = 0
 	Nprime := (1 + (2*M+k+2)/maxLK) * maxLK // total bits of prime
 	nprime := Nprime / _W
 	Mp := Nprime >> uint(k) // divide Nprime to 2^k terms. 2^(Mp*K) mod 2^Nprime+1 = -1. 2^(2*Mp*K) mod 2^Nprime+1 = -1.
@@ -77,17 +74,11 @@ func fftMul(stk *stack, z, x, y nat) nat {
 		Bp[i] = B[i*(nprime+1) : (i+1)*(nprime+1)]
 		start := i * l
 		if start < len(x) {
-			end := start + l
-			if end > len(x) {
-				end = len(x)
-			}
+			end := min(start+l, len(x))
 			copy(Ap[i], x[start:end]) // put l words of x into Ap[i]
 		} // else Ap[i] is all zeros
 		if start < len(y) {
-			end := start + l
-			if end > len(y) {
-				end = len(y)
-			}
+			end := min(start+l, len(y))
 			copy(Bp[i], y[start:end]) // put l words of y into Bp[i]
 		} // else Bp[i] is all zeros
 	}
