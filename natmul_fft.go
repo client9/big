@@ -45,6 +45,7 @@ func fftMul(stk *stack, z, x, y nat) nat {
 	M := N >> uint(k) // Divide N to 2^k terms and per part is M bits.
 	l := n >> uint(k) // Per term has l words.
 	K := 1 << uint(k) // K=2^k
+
 	// get order of terms of fft. fft[1]: 0 1, fft[2]: 0 2 1 3, fft[3]: 0 4 2 6 1 5 3 7, ...
 	fftOrder := make([][]int, k+1)
 	for i = range fftOrder {
@@ -57,6 +58,7 @@ func fftMul(stk *stack, z, x, y nat) nat {
 			fftOrder[i][j+Kt] = 1 + fftOrder[i][j]
 		}
 	}
+
 	// get prime for fft which is 2^Nprime+1.
 	maxLK := max(K, _W)                     // ensure Nprime%_W = 0
 	Nprime := (1 + (2*M+k+2)/maxLK) * maxLK // total bits of prime
@@ -82,6 +84,7 @@ func fftMul(stk *stack, z, x, y nat) nat {
 			copy(Bp[i], y[start:end]) // put l words of y into Bp[i]
 		} // else Bp[i] is all zeros
 	}
+
 	// direct fft
 	directFFT(Ap, K, fftOrder, k, 2*Mp, nprime, 1, T)
 	directFFT(Bp, K, fftOrder, k, 2*Mp, nprime, 1, T)
@@ -195,34 +198,36 @@ func directFFT(Ap []nat, K int, ll [][]int, layer int, omega int, n int, inc int
 		if cy != 0 {
 			Ap[inc][n] = addVW(Ap[inc][:n], Ap[inc][:n], ^Ap[inc][n]+1)
 		}
-	} else {
-		lk := ll[layer]
-		K2 := K >> 1
-		directFFT(Ap, K2, ll, layer-1, 2*omega, n, inc*2, tp)
-		directFFT(Ap[inc:], K2, ll, layer-1, 2*omega, n, inc*2, tp)
-		for j := 0; j < K2; j++ {
-			// lk[2*j] is the lower half of the coefficient.
-			// This enables DFT to be arranged in order of fft to facilitate the calculation of inverse fft
-			mul2ExpMod(tp, Ap[inc], lk[2*j]*omega, n)
-			// Butterfly operation
-			c := Ap[0][n] - tp[n] - subVV(Ap[inc][:n], Ap[0][:n], tp[:n])
-			if (c & (_M ^ (_M >> 1))) != 0 { // if c<0
-				Ap[inc][n] = 0
-				addVW(Ap[inc][:n+1], Ap[inc][:n+1], -c)
-			} else {
-				Ap[inc][n] = c
-			}
+		return
+	}
 
-			c = Ap[0][n] + tp[n] + addVV(Ap[0][:n], Ap[0][:n], tp[:n])
-			if c > 1 {
-				Ap[0][n] = 1
-				subVW(Ap[0][:n+1], Ap[0][:n+1], c-1)
-			} else {
-				Ap[0][n] = c
-			}
-			if j < K2-1 {
-				Ap = Ap[2*inc:]
-			}
+	lk := ll[layer]
+	K2 := K >> 1
+	directFFT(Ap, K2, ll, layer-1, 2*omega, n, inc*2, tp)
+	directFFT(Ap[inc:], K2, ll, layer-1, 2*omega, n, inc*2, tp)
+
+	for j := 0; j < K2; j++ {
+		// lk[2*j] is the lower half of the coefficient.
+		// This enables DFT to be arranged in order of fft to facilitate the calculation of inverse fft
+		mul2ExpMod(tp, Ap[inc], lk[2*j]*omega, n)
+		// Butterfly operation
+		c := Ap[0][n] - tp[n] - subVV(Ap[inc][:n], Ap[0][:n], tp[:n])
+		if (c & (_M ^ (_M >> 1))) != 0 { // if c<0
+			Ap[inc][n] = 0
+			addVW(Ap[inc][:n+1], Ap[inc][:n+1], -c)
+		} else {
+			Ap[inc][n] = c
+		}
+
+		c = Ap[0][n] + tp[n] + addVV(Ap[0][:n], Ap[0][:n], tp[:n])
+		if c > 1 {
+			Ap[0][n] = 1
+			subVW(Ap[0][:n+1], Ap[0][:n+1], c-1)
+		} else {
+			Ap[0][n] = c
+		}
+		if j < K2-1 {
+			Ap = Ap[2*inc:]
 		}
 	}
 }
@@ -243,30 +248,32 @@ func inverseFFT(Ap []nat, K int, omega int, n int, tp nat) {
 		if cy != 0 {
 			Ap[1][n] = addVW(Ap[1][:n], Ap[1][:n], ^Ap[1][n]+1)
 		}
-	} else {
-		K2 := K >> 1
-		inverseFFT(Ap, K2, 2*omega, n, tp)
-		inverseFFT(Ap[K2:], K2, 2*omega, n, tp)
-		for j := 0; j < K2; j++ {
-			mul2ExpMod(tp, Ap[K2], 2*n*_W-j*omega, n) // 2^x = - 2^(2*Nprime-x) (mod 2^Nprime+1)
-			// Butterfly operation
-			c := Ap[0][n] - tp[n] - subVV(Ap[K2][:n], Ap[0][:n], tp[:n])
-			if (c & (_M ^ (_M >> 1))) != 0 { // if c<0
-				Ap[K2][n] = 0
-				addVW(Ap[K2][:n+1], Ap[K2][:n+1], -c)
-			} else {
-				Ap[K2][n] = c
-			}
+		return
+	}
 
-			c = Ap[0][n] + tp[n] + addVV(Ap[0][:n], Ap[0][:n], tp[:n])
-			if c > 1 {
-				Ap[0][n] = 1
-				subVW(Ap[0][:n+1], Ap[0][:n+1], c-1)
-			} else {
-				Ap[0][n] = c
-			}
-			Ap = Ap[1:]
+	K2 := K >> 1
+	inverseFFT(Ap, K2, 2*omega, n, tp)
+	inverseFFT(Ap[K2:], K2, 2*omega, n, tp)
+
+	for j := 0; j < K2; j++ {
+		mul2ExpMod(tp, Ap[K2], 2*n*_W-j*omega, n) // 2^x = - 2^(2*Nprime-x) (mod 2^Nprime+1)
+		// Butterfly operation
+		c := Ap[0][n] - tp[n] - subVV(Ap[K2][:n], Ap[0][:n], tp[:n])
+		if (c & (_M ^ (_M >> 1))) != 0 { // if c<0
+			Ap[K2][n] = 0
+			addVW(Ap[K2][:n+1], Ap[K2][:n+1], -c)
+		} else {
+			Ap[K2][n] = c
 		}
+
+		c = Ap[0][n] + tp[n] + addVV(Ap[0][:n], Ap[0][:n], tp[:n])
+		if c > 1 {
+			Ap[0][n] = 1
+			subVW(Ap[0][:n+1], Ap[0][:n+1], c-1)
+		} else {
+			Ap[0][n] = c
+		}
+		Ap = Ap[1:]
 	}
 }
 
@@ -297,25 +304,28 @@ func mul2ExpMod(r nat, a nat, d int, n int) {
 			t++
 		}
 		addVW(r[t:n+1], r[t:n+1], cc)
-	} else {
-		local_shlVU(r[:m+1], a[n-m:n+1], sh)
-		for i, x := range r[:m+1] {
-			r[i] = ^x
+		return
+	}
+
+	// m < n
+
+	local_shlVU(r[:m+1], a[n-m:n+1], sh)
+	for i, x := range r[:m+1] {
+		r[i] = ^x
+	}
+	rd = ^r[m]
+	cc = local_shlVU(r[m:n], a[:n-m], sh)
+	if m != 0 {
+		if cc == 0 {
+			cc = addVW(r[:n], r[:n], 1)
+		} else {
+			cc--
 		}
-		rd = ^r[m]
-		cc = local_shlVU(r[m:n], a[:n-m], sh)
-		if m != 0 {
-			if cc == 0 {
-				cc = addVW(r[:n], r[:n], 1)
-			} else {
-				cc--
-			}
-			cc = subVW(r[:m], r[:m], cc) + 1
-		}
-		r[n] = -subVW(r[m:n], r[m:n], cc)
-		r[n] -= subVW(r[m:n], r[m:n], rd)
-		if r[n]&(_M^(_M>>1)) != 0 { // when r[n]<0
-			r[n] = addVW(r[:n], r[:n], 1)
-		}
+		cc = subVW(r[:m], r[:m], cc) + 1
+	}
+	r[n] = -subVW(r[m:n], r[m:n], cc)
+	r[n] -= subVW(r[m:n], r[m:n], rd)
+	if r[n]&(_M^(_M>>1)) != 0 { // when r[n]<0
+		r[n] = addVW(r[:n], r[:n], 1)
 	}
 }
