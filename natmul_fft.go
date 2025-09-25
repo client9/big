@@ -138,15 +138,18 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 	for i := range K {
 		//clear(Bp[i]) // not needed
 		fermatMul2Exp(Bp[i], Ap[i], 2*Nprime-k, nprime)
-		if Bp[i][nprime] != 0 {
-			cc = subVW(Bp[i][:nprime], Bp[i][:nprime], 1)
-			if cc != 0 { // only when Bp[i] = 2^Nprime
-				clear(Bp[i][:nprime])
-				Bp[i][nprime] = 1
-			} else {
-				Bp[i][nprime] = 0
+		fermatNormalize(Bp[i], nprime)
+		/*
+			if Bp[i][nprime] != 0 {
+				cc = subVW(Bp[i][:nprime], Bp[i][:nprime], 1)
+				if cc != 0 { // only when Bp[i] = 2^Nprime
+					clear(Bp[i][:nprime])
+					Bp[i][nprime] = 1
+				} else {
+					Bp[i][nprime] = 0
+				}
 			}
-		}
+		*/
 	}
 
 	// addition of terms in result p
@@ -259,6 +262,19 @@ func inverseFFT(Ap []nat, K int, omega int, n int, tp nat) {
 		fermatSub(Ap[K2], Ap[0], tp, n)
 		fermatAdd(Ap[0], Ap[0], tp, n)
 		Ap = Ap[1:]
+	}
+}
+
+func fermatNormalize(r nat, n int) {
+	if r[n] == 0 {
+		return
+	}
+	cc := subVW(r[:n], r[:n], 1)
+	if cc != 0 { // only when r = 2^Nprime
+		clear(r[:n])
+		r[n] = 1
+	} else {
+		r[n] = 0
 	}
 }
 
