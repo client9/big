@@ -2,15 +2,6 @@ package big
 
 var fftThreshold = 2500
 
-// shlVU is obsolete,but existing lshVU doesn't handle s==0 case?
-func local_shlVU(z, x []Word, s uint) (c Word) {
-	if s == 0 {
-		copy(z, x)
-		return 0
-	}
-	return lshVU(z, x, s)
-}
-
 // fftMulParam returns parameters n and k for the FFT algorithm
 func fftMulParam(xlen, ylen int) int {
 	// get best k for fft
@@ -304,9 +295,16 @@ func mul2ExpMod(r nat, a nat, d int, n int) {
 	var rd, cc Word
 	if m >= n {
 		m -= n
-		local_shlVU(r[:m+1], a[n-m:n+1], sh)
-		rd = r[m]
-		cc = local_shlVU(r[m:n], a[:n-m], sh)
+		if sh == 0 {
+			copy(r[:m+1], a[n-m:n+1])
+			rd = r[m]
+			copy(r[m:n], a[:n-m])
+			// cc remains zero
+		} else {
+			lshVU(r[:m+1], a[n-m:n+1], sh)
+			rd = r[m]
+			cc = lshVU(r[m:n], a[:n-m], sh)
+		}
 		for i, x := range r[m:n] {
 			r[m+i] = ^x
 		}
@@ -329,12 +327,24 @@ func mul2ExpMod(r nat, a nat, d int, n int) {
 
 	// m < n
 
-	local_shlVU(r[:m+1], a[n-m:n+1], sh)
-	for i, x := range r[:m+1] {
-		r[i] = ^x
+	// TODO SIMPLIFY
+	if sh == 0 {
+		copy(r[:m+1], a[n-m:n+1])
+		for i, x := range r[:m+1] {
+			r[i] = ^x
+		}
+		rd = ^r[m]
+		copy(r[m:n], a[:n-m])
+		cc = 0
+	} else {
+		lshVU(r[:m+1], a[n-m:n+1], sh)
+		for i, x := range r[:m+1] {
+			r[i] = ^x
+		}
+		rd = ^r[m]
+		cc = lshVU(r[m:n], a[:n-m], sh)
 	}
-	rd = ^r[m]
-	cc = local_shlVU(r[m:n], a[:n-m], sh)
+
 	if m != 0 {
 		if cc == 0 {
 			cc = addVW(r[:n], r[:n], 1)
