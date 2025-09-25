@@ -1,14 +1,24 @@
 package big
 
-// References to A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen", Computing 7 (1971), pp. 281–292.
-// and https://en.wikipedia.org/wiki/Sch%C3%B6nhage%E2%80%93Strassen_algorithm#Convolution_theorem
+//  A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen", Computing 7 (1971), pp. 281–292.
+//  https://link.springer.com/article/10.1007/BF02242355
+//  English translation by Ryan Landay, 2023
+//  https://github.com/rlanday/FastMultiplicationOfLargeIntegers
+//
+// https://en.wikipedia.org/wiki/Sch%C3%B6nhage%E2%80%93Strassen_algorithm
+
+// ssaThreshold is minimum number of words needed in the product
+// for this algorithm to be used.
+var ssaThreshold = 2500
+
+// ssaMul performs the Schönhage-Strassen algorithm computing
+//
+//	x*y storing result in z
 func ssaMul(stk *stack, z, x, y nat) nat {
 
 	k := ssaMulParam(len(x), len(y))
 	return ssaMulK(stk, k, z, x, y)
 }
-
-var ssaThreshold = 2500
 
 // ssaMulParam returns parameters n and k for the FFT algorithm
 func ssaMulParam(xlen, ylen int) int {
@@ -16,7 +26,8 @@ func ssaMulParam(xlen, ylen int) int {
 	const k0 int = 6
 	var lenTable = []int{
 		// this will be redone later
-		ssaThreshold, 2 * ssaThreshold, 4 * ssaThreshold, 8 * ssaThreshold, 24 * ssaThreshold, 72 * ssaThreshold,
+		ssaThreshold, 2 * ssaThreshold, 4 * ssaThreshold,
+		8 * ssaThreshold, 24 * ssaThreshold, 72 * ssaThreshold,
 	}
 
 	k := 0
@@ -45,32 +56,38 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	//
 	//  1.  n > xlen+ylen (must be able to hold result)
 	//  2.  n is a power of 2 (needed for FFT)
-	//  3.  n is divisible by 2ᵏ (needed for ℤ/Fnℤ Fermat)
+	//  3.  n is divisible by 2ᵏ (to be in ℤ/Fnℤ Fermat)
 	//
 	n := len(x) + len(y)
 	n = 1 + ((n - 1) >> uint(k)) // ceil(n/2ᵏ)
 	n <<= uint(k)                // ceil(n/2ᵏ) * 2ᵏ
 
+	// when this function is called by nat.mul()
+	// z.make(n) does nothing, as it has already been allocated
 	z = z.make(n)
+
 	N := n * _W       // total bits of z
 	M := N >> uint(k) // Divide N to 2ᵏ terms and per part is M bits.
 	l := n >> uint(k) // Per term has l words.
 	K := 1 << uint(k) // K=2ᵏ
 
-	// get order of terms of fft. fft[1]: 0 1, fft[2]: 0 2 1 3, fft[3]: 0 4 2 6 1 5 3 7, ...
 	fftOrder := fftOrderK(k)
 
 	// get prime for fft which is 2^Nprime+1.
 	maxLK := max(K, _W)                     // ensure Nprime%_W = 0
 	Nprime := (1 + (2*M+k+2)/maxLK) * maxLK // total bits of prime
 	nprime := Nprime / _W
-	Mp := Nprime >> uint(k) // divide Nprime to 2^k terms. 2^(Mp*K) mod 2^Nprime+1 = -1. 2^(2*Mp*K) mod 2^Nprime+1 = -1.
+
+	// divide Nprime to 2^k terms.
+	// 2^(Mp*K) mod 2^Nprime+1 = -1. 2^(2*Mp*K) mod 2^Nprime+1 = -1.
+	Mp := Nprime >> uint(k)
 
 	A := nat(nil).make(K * (nprime + 1)) // storage for fft
 	B := nat(nil).make(K * (nprime + 1))
 	Ap := make([]nat, K)
 	Bp := make([]nat, K)
 	T := nat(nil).make(2*nprime + 2) // temporary storage
+
 	// Extend x,y to N bits then decompose it to 2^k terms
 	for i := range K {
 		Ap[i] = A[i*(nprime+1) : (i+1)*(nprime+1)]
@@ -86,13 +103,11 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 		} // else Bp[i] is all zeros
 	}
 
-	// direct fft
 	directFFT(Ap, K, fftOrder, k, 2*Mp, nprime, 1, T)
 	directFFT(Bp, K, fftOrder, k, 2*Mp, nprime, 1, T)
 
 	// term multiplications (mod 2^Nprime+1)
 	tp := T[:2*nprime]
-
 	for i := range K {
 		var cc Word
 		a, b := Ap[i], Bp[i]
@@ -113,13 +128,10 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 		}
 	}
 
-	// inverse fft
 	inverseFFT(Ap, K, 2*Mp, nprime, T)
 
-	// division of terms after inverse fft
 	for i := range K {
-		fermatMul2Exp(Bp[i], Ap[i], 2*Nprime-k, nprime)
-		fermatNormalize(Bp[i], nprime)
+		fermatDiv2Exp(Bp[i], Ap[i], k, nprime)
 	}
 
 	// addition of terms in result p
@@ -140,7 +152,11 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 }
 
 func fftOrderK(k int) [][]int {
-	// get order of terms of fft. fft[1]: 0 1, fft[2]: 0 2 1 3, fft[3]: 0 4 2 6 1 5 3 7, ...
+	// get order of terms of fft.
+	//   fft[1]: 0 1
+	//   fft[2]: 0 2 1 3
+	//   fft[3]: 0 4 2 6 1 5 3 7
+	//
 	fftOrder := make([][]int, k+1)
 	for i := range fftOrder {
 		fftOrder[i] = make([]int, 1<<uint(i))
@@ -209,7 +225,8 @@ func directFFT(Ap []nat, K int, ll [][]int, layer int, omega int, n int, inc int
 
 	for j := range K2 {
 		// lk[2*j] is the lower half of the coefficient.
-		// This enables DFT to be arranged in order of fft to facilitate the calculation of inverse fft
+		// This enables DFT to be arranged in order of fft to
+		// facilitate the calculation of inverse fft
 		fermatMul2Exp(tp, Ap[inc], lk[2*j]*omega, n)
 		fermatSub(Ap[inc], Ap[0], tp, n)
 		fermatAdd(Ap[0], Ap[0], tp, n)
@@ -220,7 +237,10 @@ func directFFT(Ap []nat, K int, ll [][]int, layer int, omega int, n int, inc int
 	}
 }
 
-// inverseFFT does the same thing as FFT operation, except w[x,t] is -(2^(x*t*2*Mp)) mod 2^Nprime+1 instead.
+// inverseFFT does the same thing as FFT operation with
+//
+//	w[x,t] is -(2^(x*t*2*Mp)) mod 2^Nprime+1
+//
 // K <- number of terms of current layer.
 // omega<- t*2*Mp in the current layer.
 // n<- length of nprime.
@@ -244,7 +264,8 @@ func inverseFFT(Ap []nat, K int, omega int, n int, tp nat) {
 	inverseFFT(Ap[K2:], K2, 2*omega, n, tp)
 
 	for j := range K2 {
-		fermatMul2Exp(tp, Ap[K2], 2*n*_W-j*omega, n) // 2^x = - 2^(2*Nprime-x) (mod 2^Nprime+1)
+		// 2^x = - 2^(2*Nprime-x) (mod 2^Nprime+1)
+		fermatMul2Exp(tp, Ap[K2], 2*n*_W-j*omega, n)
 		fermatSub(Ap[K2], Ap[0], tp, n)
 		fermatAdd(Ap[0], Ap[0], tp, n)
 		Ap = Ap[1:]
@@ -284,11 +305,18 @@ func fermatSub(r, a, b nat, n int) {
 	}
 }
 
-// r=a*2^d mod 2^(n*_W)+1, ensure 0 <= d <= 2*n*_W.
+// fermatDiv2Exp performs a/2ᵈ mod 2ᴺ+1
+func fermatDiv2Exp(r nat, a nat, d int, n int) {
+	fermatMul2Exp(r, a, 2*n*_W-d, n)
+	fermatNormalize(r, n)
+}
+
+// fermatMul2Exp performs a*2ᵈ mod 2ᴺ+1, ensure 0 <= d <= 2*N.
 func fermatMul2Exp(r nat, a nat, d int, n int) {
+	var rd, cc Word
 	sh := uint(d % _W)
 	m := d / _W
-	var rd, cc Word
+
 	if m >= n {
 		m -= n
 		if sh == 0 {
