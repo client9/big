@@ -1,11 +1,22 @@
 package big
 
-//  A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen", Computing 7 (1971), pp. 281–292.
+//  A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen",
+//     Computing 7 (1971), pp. 281–292.
 //  https://link.springer.com/article/10.1007/BF02242355
 //  English translation by Ryan Landay, 2023
 //  https://github.com/rlanday/FastMultiplicationOfLargeIntegers
 //
-// https://en.wikipedia.org/wiki/Sch%C3%B6nhage%E2%80%93Strassen_algorithm
+//  Pierrick Gaudry, Alexander Kruppa,  Paul Zimmermann
+//  "A GMP-based Implementation of Schönhage-Strassen’s Large
+//       Integer Multiplication Algorithm"
+//     ISSAC '07: Proceedings of the 2007 international symposium on
+//        Symbolic and algebraic computation
+//     https://dl.acm.org/doi/proceedings/10.1145/1277548
+//  Available at: https://inria.hal.science/inria-00126462v2/document
+//
+// Wikipedia, entry for "Schönhage–Strassen algorithm"
+//   https://en.wikipedia.org/wiki/Sch%C3%B6nhage%E2%80%93Strassen_algorithm
+//
 
 // ssaThreshold is minimum number of words needed in the product
 // for this algorithm to be used.
