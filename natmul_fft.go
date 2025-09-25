@@ -109,15 +109,15 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 		b := Bp[i]
 		tp.mul(stk, a[:nprime], b[:nprime])
 		if a[nprime] != 0 {
-			cc = addVV(tp[nprime:2*nprime], tp[nprime:2*nprime], b[:nprime])
+			cc = addVV(tp[nprime:], tp[nprime:], b[:nprime])
 		}
 		if b[nprime] != 0 {
-			cc += addVV(tp[nprime:2*nprime], tp[nprime:2*nprime], a[:nprime]) + a[nprime]
+			cc += addVV(tp[nprime:], tp[nprime:], a[:nprime]) + a[nprime]
 		}
 		if cc != 0 {
-			addVW(tp[:2*nprime], tp[:2*nprime], cc)
+			addVW(tp, tp, cc)
 		}
-		if subVV(a[:nprime], tp[:nprime], tp[nprime:2*nprime]) != 0 && addVW(a[:nprime], a[:nprime], 1) != 0 {
+		if subVV(a[:nprime], tp[:nprime], tp[nprime:]) != 0 && addVW(a[:nprime], a[:nprime], 1) != 0 {
 			a[nprime] = 1
 		} else {
 			a[nprime] = 0
