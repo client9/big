@@ -135,19 +135,25 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	}
 
 	// addition of terms in result p
-	pla := l*(K-1) + nprime + 1
+	np1 := nprime + 1
+	Km1 := K - 1
+	pla := l*Km1 + np1
+
+	// A is no longer needed.  Reuse it's memory for addition step.
 	p := A[:pla]
-	clear(p) // needed
-	i := K - 1
-	sh := l * i
-	for ; i >= 0; i-- {
+	clear(p)
+
+	sh := l * Km1
+	for i := Km1; i >= 0; i-- {
 		t := p[sh:]
-		if addVV(t[:nprime+1], t[:nprime+1], Bp[i][:nprime+1]) != 0 {
-			addVW(t[nprime+1:pla-sh], t[nprime+1:pla-sh], 1)
+		if addVV(t[:np1], t[:np1], Bp[i][:np1]) != 0 {
+			addVW(t[np1:pla-sh], t[np1:pla-sh], 1)
 		}
 		sh -= l
 	}
-	copy(z[:n], p[:n])
+
+	// z is length n
+	copy(z, p[:n])
 	return z.norm()
 }
 
