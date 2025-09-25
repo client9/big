@@ -103,20 +103,13 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 	// term multiplications (mod 2^Nprime+1)
 	tp := T[:2*nprime]
 
-	t := nat(nil)
-
-	var cc Word
 	for i := range K {
+		var cc Word
 		a := Ap[i]
 		b := Bp[i]
-		t = t.mul(stk, a[:nprime], b[:nprime])
-		copy(tp, t)
-		// tp is recycled, and may be longer than t.  Clear trailing words
-		clear(tp[len(t):])
+		tp.mul(stk, a[:nprime], b[:nprime])
 		if a[nprime] != 0 {
 			cc = addVV(tp[nprime:2*nprime], tp[nprime:2*nprime], b[:nprime])
-		} else {
-			cc = 0
 		}
 		if b[nprime] != 0 {
 			cc += addVV(tp[nprime:2*nprime], tp[nprime:2*nprime], a[:nprime]) + a[nprime]
