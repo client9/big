@@ -136,20 +136,8 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 
 	// division of terms after inverse fft
 	for i := range K {
-		//clear(Bp[i]) // not needed
 		fermatMul2Exp(Bp[i], Ap[i], 2*Nprime-k, nprime)
 		fermatNormalize(Bp[i], nprime)
-		/*
-			if Bp[i][nprime] != 0 {
-				cc = subVW(Bp[i][:nprime], Bp[i][:nprime], 1)
-				if cc != 0 { // only when Bp[i] = 2^Nprime
-					clear(Bp[i][:nprime])
-					Bp[i][nprime] = 1
-				} else {
-					Bp[i][nprime] = 0
-				}
-			}
-		*/
 	}
 
 	// addition of terms in result p
