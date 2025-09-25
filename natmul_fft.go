@@ -1,13 +1,22 @@
 package big
 
-var fftThreshold = 2500
+// References to A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen", Computing 7 (1971), pp. 281–292.
+// and https://en.wikipedia.org/wiki/Sch%C3%B6nhage%E2%80%93Strassen_algorithm#Convolution_theorem
+func ssaMul(stk *stack, z, x, y nat) nat {
 
-// fftMulParam returns parameters n and k for the FFT algorithm
-func fftMulParam(xlen, ylen int) int {
+	k := ssaMulParam(len(x), len(y))
+	return ssaMulK(stk, k, z, x, y)
+}
+
+var ssaThreshold = 2500
+
+// ssaMulParam returns parameters n and k for the FFT algorithm
+func ssaMulParam(xlen, ylen int) int {
 	// get best k for fft
 	const k0 int = 6
 	var lenTable = []int{
-		fftThreshold, 2 * fftThreshold, 4 * fftThreshold, 8 * fftThreshold, 24 * fftThreshold, 72 * fftThreshold,
+		// this will be redone later
+		ssaThreshold, 2 * ssaThreshold, 4 * ssaThreshold, 8 * ssaThreshold, 24 * ssaThreshold, 72 * ssaThreshold,
 	}
 
 	k := 0
@@ -30,23 +39,14 @@ func fftMulParam(xlen, ylen int) int {
 	return k
 }
 
-// References to A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen", Computing 7 (1971), pp. 281–292.
-// and https://en.wikipedia.org/wiki/Sch%C3%B6nhage%E2%80%93Strassen_algorithm#Convolution_theorem
-func fftMul(stk *stack, z, x, y nat) nat {
-
-	k := fftMulParam(len(x), len(y))
-	return fftMulK(stk, k, z, x, y)
-}
-
-// n >= len(x) + len(y)
-func fftMulK(stk *stack, k int, z, x, y nat) nat {
+func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 
 	// compute n such that:
 	//
 	//  1.  n > xlen+ylen (must be able to hold result)
 	//  2.  n is a power of 2 (needed for FFT)
 	//  3.  n is divisible by 2ᵏ (needed for ℤ/Fnℤ Fermat)
-
+	//
 	n := len(x) + len(y)
 	n = 1 + ((n - 1) >> uint(k)) // ceil(n/2ᵏ)
 	n <<= uint(k)                // ceil(n/2ᵏ) * 2ᵏ
@@ -58,17 +58,7 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 	K := 1 << uint(k) // K=2ᵏ
 
 	// get order of terms of fft. fft[1]: 0 1, fft[2]: 0 2 1 3, fft[3]: 0 4 2 6 1 5 3 7, ...
-	fftOrder := make([][]int, k+1)
-	for i := range fftOrder {
-		fftOrder[i] = make([]int, 1<<uint(i))
-	}
-	for i := 1; i <= k; i++ {
-		Kt := 1 << uint(i-1)
-		for j := 0; j < Kt; j++ {
-			fftOrder[i][j] = fftOrder[i-1][j] * 2
-			fftOrder[i][j+Kt] = 1 + fftOrder[i][j]
-		}
-	}
+	fftOrder := fftOrderK(k)
 
 	// get prime for fft which is 2^Nprime+1.
 	maxLK := max(K, _W)                     // ensure Nprime%_W = 0
@@ -105,8 +95,7 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 
 	for i := range K {
 		var cc Word
-		a := Ap[i]
-		b := Bp[i]
+		a, b := Ap[i], Bp[i]
 		tp.mul(stk, a[:nprime], b[:nprime])
 		if a[nprime] != 0 {
 			cc = addVV(tp[nprime:], tp[nprime:], b[:nprime])
@@ -148,6 +137,22 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 	}
 	copy(z[:n], p[:n])
 	return z.norm()
+}
+
+func fftOrderK(k int) [][]int {
+	// get order of terms of fft. fft[1]: 0 1, fft[2]: 0 2 1 3, fft[3]: 0 4 2 6 1 5 3 7, ...
+	fftOrder := make([][]int, k+1)
+	for i := range fftOrder {
+		fftOrder[i] = make([]int, 1<<uint(i))
+	}
+	for i := 1; i <= k; i++ {
+		Kt := 1 << uint(i-1)
+		for j := 0; j < Kt; j++ {
+			fftOrder[i][j] = fftOrder[i-1][j] * 2
+			fftOrder[i][j+Kt] = 1 + fftOrder[i][j]
+		}
+	}
+	return fftOrder
 }
 
 // calculate FFT of Ap.

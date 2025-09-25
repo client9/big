@@ -33,6 +33,12 @@ func (z nat) mul(stk *stack, x, y nat) nat {
 	}
 	z = z.make(m + n)
 
+	//
+	// TODO: This set of conditionals for basic, karatsuba, ssa
+	// need to be redone so we be slot in other algorithms
+	// Karatsuba is somewhat split into two parts
+	//
+
 	// use basic multiplication if the numbers are small
 	if n < karatsubaThreshold {
 		basicMul(z, x, y)
@@ -44,9 +50,10 @@ func (z nat) mul(stk *stack, x, y nat) nat {
 		defer stk.free()
 	}
 
-	// use fft instead. Turn off with threshold of 0
-	if fftThreshold > 0 && n >= fftThreshold {
-		z = fftMul(stk, z, x, y)
+	// Use Schönhage-Strassen Algorithm (SSA)
+	// Turn off with threshold of 0
+	if ssaThreshold > 0 && n >= ssaThreshold {
+		z = ssaMul(stk, z, x, y)
 		return z
 	}
 
