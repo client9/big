@@ -13,7 +13,7 @@ func fftMulParam(xlen, ylen int) int {
 	k := 0
 	n := xlen + ylen
 	var i int
-	for i = 0; i < len(lenTable); i++ {
+	for i = range len(lenTable) {
 		if n < lenTable[i] {
 			k = i + k0
 			break
@@ -82,7 +82,7 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 	Bp := make([]nat, K)
 	T := nat(nil).make(2*nprime + 2) // temporary storage
 	// Extend x,y to N bits then decompose it to 2^k terms
-	for i := 0; i < K; i++ {
+	for i := range K {
 		Ap[i] = A[i*(nprime+1) : (i+1)*(nprime+1)]
 		Bp[i] = B[i*(nprime+1) : (i+1)*(nprime+1)]
 		start := i * l
@@ -106,7 +106,7 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 	t := nat(nil)
 
 	var cc Word
-	for i := 0; i < K; i++ {
+	for i := range K {
 		a := Ap[i]
 		b := Bp[i]
 		t = t.mul(stk, a[:nprime], b[:nprime])
@@ -134,7 +134,7 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 	inverseFFT(Ap, K, 2*Mp, nprime, T)
 
 	// division of terms after inverse fft
-	for i := 0; i < K; i++ {
+	for i := range K {
 		clear(Bp[i])
 		mul2ExpMod(Bp[i], Ap[i], 2*Nprime-k, nprime)
 		if Bp[i][nprime] != 0 {
@@ -217,7 +217,7 @@ func directFFT(Ap []nat, K int, ll [][]int, layer int, omega int, n int, inc int
 	directFFT(Ap, K2, ll, layer-1, 2*omega, n, inc*2, tp)
 	directFFT(Ap[inc:], K2, ll, layer-1, 2*omega, n, inc*2, tp)
 
-	for j := 0; j < K2; j++ {
+	for j := range K2 {
 		// lk[2*j] is the lower half of the coefficient.
 		// This enables DFT to be arranged in order of fft to facilitate the calculation of inverse fft
 		mul2ExpMod(tp, Ap[inc], lk[2*j]*omega, n)
@@ -266,7 +266,7 @@ func inverseFFT(Ap []nat, K int, omega int, n int, tp nat) {
 	inverseFFT(Ap, K2, 2*omega, n, tp)
 	inverseFFT(Ap[K2:], K2, 2*omega, n, tp)
 
-	for j := 0; j < K2; j++ {
+	for j := range K2 {
 		mul2ExpMod(tp, Ap[K2], 2*n*_W-j*omega, n) // 2^x = - 2^(2*Nprime-x) (mod 2^Nprime+1)
 		// Butterfly operation
 		c := Ap[0][n] - tp[n] - subVV(Ap[K2][:n], Ap[0][:n], tp[:n])
