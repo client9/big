@@ -20,7 +20,7 @@ func benchmarkFFTk(b *testing.B, nwords int, k int) {
 	var z nat
 	b.ReportAllocs()
 	for b.Loop() {
-		fftMulK(nil, k, z, x, y)
+		ssaMulK(nil, k, z, x, y)
 	}
 }
 
@@ -65,7 +65,7 @@ func FuzzNatMulFFT(f *testing.F) {
 		a := randnat(r, r.IntN(100))
 		b := randnat(r, r.IntN(100))
 		z := nat{}
-		z = fftMul(nil, z, a, b)
+		z = ssaMul(nil, z, a, b)
 		if z.cmp(testMul(a, b)) != 0 {
 			t.Errorf("%s x %s failure", a.String(), b.String())
 		}
