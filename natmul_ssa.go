@@ -58,17 +58,13 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	//  2.  n is a power of 2 (needed for FFT)
 	//  3.  n is divisible by 2ᵏ (to be in ℤ/Fnℤ Fermat)
 	//
-	n := len(x) + len(y)
+	n := len(x) + len(y)         // number of words in output
 	n = 1 + ((n - 1) >> uint(k)) // ceil(n/2ᵏ)
 	n <<= uint(k)                // ceil(n/2ᵏ) * 2ᵏ
 
-	// when this function is called by nat.mul()
-	// z.make(n) does nothing, as it has already been allocated
-	z = z.make(n)
-
-	N := n * _W       // total bits of z
-	M := N >> uint(k) // Divide N to 2ᵏ terms and per part is M bits.
-	l := n >> uint(k) // Per term has l words.
+	N := n * _W       // total bits of z, output
+	M := N >> uint(k) // divide N to 2ᵏ terms and per part is M bits
+	l := n >> uint(k) // per term has l words
 	K := 1 << uint(k) // K=2ᵏ
 
 	fftOrder := fftOrderK(k)
@@ -86,20 +82,25 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	B := nat(nil).make(K * (nprime + 1))
 	Ap := make([]nat, K)
 	Bp := make([]nat, K)
-	T := nat(nil).make(2*nprime + 2) // temporary storage
+	T := nat(nil).make(2 * (nprime + 1)) // temporary storage
 
 	// Extend x,y to N bits then decompose it to 2^k terms
+	// Each Ap[i] is a slice into A, with nprime+1 word length
+	// Loop putting l words of x into Ap[i]
+	//
+	// Same for B, Bp, and y.
+	//
 	for i := range K {
 		Ap[i] = A[i*(nprime+1) : (i+1)*(nprime+1)]
 		Bp[i] = B[i*(nprime+1) : (i+1)*(nprime+1)]
 		start := i * l
 		if start < len(x) {
 			end := min(start+l, len(x))
-			copy(Ap[i], x[start:end]) // put l words of x into Ap[i]
+			copy(Ap[i], x[start:end])
 		} // else Ap[i] is all zeros
 		if start < len(y) {
 			end := min(start+l, len(y))
-			copy(Bp[i], y[start:end]) // put l words of y into Bp[i]
+			copy(Bp[i], y[start:end])
 		} // else Bp[i] is all zeros
 	}
 
@@ -150,7 +151,11 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 		}
 	}
 
-	// z is length n
+	// Copy final result to output z
+	//
+	// when this function is called by nat.mul()
+	// z.make(n) does nothing, as it has already been allocated
+	z = z.make(n)
 	copy(z, p[:n])
 	return z.norm()
 }
@@ -210,7 +215,6 @@ func fftOrderK(k int) [][]int {
 func directFFT(Ap []nat, K int, ll [][]int, layer int, omega int, n int, inc int, tp nat) {
 	if K == 2 {
 		copy(tp[:n+1], Ap[0][:n+1])
-		// Butterfly operation
 		addVV(Ap[0][:n+1], Ap[0][:n+1], Ap[inc][:n+1])
 		cy := subVV(Ap[inc][:n+1], tp[:n+1], Ap[inc][:n+1])
 		if Ap[0][n] > 1 {
@@ -251,7 +255,6 @@ func directFFT(Ap []nat, K int, ll [][]int, layer int, omega int, n int, inc int
 func inverseFFT(Ap []nat, K int, omega int, n int, tp nat) {
 	if K == 2 {
 		copy(tp[:n+1], Ap[0][:n+1])
-		// Butterfly operation
 		addVV(Ap[0][:n+1], Ap[0][:n+1], Ap[1][:n+1])
 		cy := subVV(Ap[1][:n+1], tp[:n+1], Ap[1][:n+1])
 		if Ap[0][n] > 1 {
@@ -278,15 +281,19 @@ func inverseFFT(Ap []nat, K int, omega int, n int, tp nat) {
 
 func fermatNormalize(r nat, n int) {
 	if r[n] == 0 {
+		// already normal
 		return
 	}
-	cc := subVW(r[:n], r[:n], 1)
-	if cc != 0 { // only when r = 2^Nprime
-		clear(r[:n])
-		r[n] = 1
-	} else {
+
+	// subtract 1, no borrow
+	if cc := subVW(r[:n], r[:n], 1); cc == 0 {
 		r[n] = 0
+		return
 	}
+
+	// subtract 1, with borrow, only when r = 2^Nprime
+	clear(r[:n])
+	r[n] = 1
 }
 
 func fermatAdd(r, a, b nat, n int) {
@@ -301,7 +308,11 @@ func fermatAdd(r, a, b nat, n int) {
 
 func fermatSub(r, a, b nat, n int) {
 	c := a[n] - b[n] - subVV(r[:n], a[:n], b[:n])
-	if (c & (_M ^ (_M >> 1))) != 0 { // if c<0
+
+	// c is an unsigned type, and we did subtraction
+	// so either check highbit, or do a cast to signed
+	// if int(c) < 0 {
+	if (c & (_M ^ (_M >> 1))) != 0 {
 		r[n] = 0
 		addVW(r[:n+1], r[:n+1], -c)
 	} else {
