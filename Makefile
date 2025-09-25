@@ -4,6 +4,10 @@ build:
 test:
 	go test .
 
+lint:
+	gofmt -w -s *.go
+	go vet *.go
+
 fuzz:
 	go test -fuzz=NatMulFFT
 
