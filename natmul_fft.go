@@ -11,47 +11,67 @@ func local_shlVU(z, x []Word, s uint) (c Word) {
 	return lshVU(z, x, s)
 }
 
+// fftMulParam returns parameters n and k for the FFT algorithm
+func fftMulParam(xlen, ylen int) int {
+	// get best k for fft
+	const k0 int = 6
+	var lenTable = []int{
+		fftThreshold, 2 * fftThreshold, 4 * fftThreshold, 8 * fftThreshold, 24 * fftThreshold, 72 * fftThreshold,
+	}
+
+	k := 0
+	n := xlen + ylen
+	var i int
+	for i = 0; i < len(lenTable); i++ {
+		if n < lenTable[i] {
+			k = i + k0
+			break
+		}
+	}
+	if k == 0 {
+		if i == 0 || n < 4*lenTable[i-1] {
+			k = i + k0
+		} else {
+			k = i + k0 + 1
+		}
+	}
+
+	return k
+}
+
 // References to A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen", Computing 7 (1971), pp. 281–292.
 // and https://en.wikipedia.org/wiki/Sch%C3%B6nhage%E2%80%93Strassen_algorithm#Convolution_theorem
 func fftMul(stk *stack, z, x, y nat) nat {
-	xl := len(x)
-	yl := len(y)
-	var n, k, i int
-	{
-		// get best n,k for fft
-		n = xl + yl
-		const k0 int = 6
-		var lenTable = []int{
-			fftThreshold, 2 * fftThreshold, 4 * fftThreshold, 8 * fftThreshold, 24 * fftThreshold, 72 * fftThreshold,
-		}
-		for i = 0; i < len(lenTable); i++ {
-			if n < lenTable[i] {
-				k = i + k0
-				break
-			}
-		}
-		if k == 0 {
-			if i == 0 || n < 4*lenTable[i-1] {
-				k = i + k0
-			} else {
-				k = i + k0 + 1
-			}
-		}
-		n = 1 + ((n - 1) >> uint(k)) // ceil(n/2^k)
-		n <<= uint(k)
-	}
+
+	k := fftMulParam(len(x), len(y))
+	return fftMulK(stk, k, z, x, y)
+}
+
+// n >= len(x) + len(y)
+func fftMulK(stk *stack, k int, z, x, y nat) nat {
+
+	// compute n such that:
+	//
+	//  1.  n > xlen+ylen (must be able to hold result)
+	//  2.  n is a power of 2 (needed for FFT)
+	//  3.  n is divisible by 2ᵏ (needed for ℤ/Fnℤ Fermat)
+
+	n := len(x) + len(y)
+	n = 1 + ((n - 1) >> uint(k)) // ceil(n/2ᵏ)
+	n <<= uint(k)
+
 	z = z.make(n)
 	N := n * _W       // total bits of z
-	M := N >> uint(k) // Divide N to 2^k terms and per part is M bits.
+	M := N >> uint(k) // Divide N to 2ᵏ terms and per part is M bits.
 	l := n >> uint(k) // Per term has l words.
-	K := 1 << uint(k) // K=2^k
+	K := 1 << uint(k) // K=2ᵏ
 
 	// get order of terms of fft. fft[1]: 0 1, fft[2]: 0 2 1 3, fft[3]: 0 4 2 6 1 5 3 7, ...
 	fftOrder := make([][]int, k+1)
-	for i = range fftOrder {
+	for i := range fftOrder {
 		fftOrder[i] = make([]int, 1<<uint(i))
 	}
-	for i = 1; i <= k; i++ {
+	for i := 1; i <= k; i++ {
 		Kt := 1 << uint(i-1)
 		for j := 0; j < Kt; j++ {
 			fftOrder[i][j] = fftOrder[i-1][j] * 2
@@ -71,7 +91,7 @@ func fftMul(stk *stack, z, x, y nat) nat {
 	Bp := make([]nat, K)
 	T := nat(nil).make(2*nprime + 2) // temporary storage
 	// Extend x,y to N bits then decompose it to 2^k terms
-	for i = 0; i < K; i++ {
+	for i := 0; i < K; i++ {
 		Ap[i] = A[i*(nprime+1) : (i+1)*(nprime+1)]
 		Bp[i] = B[i*(nprime+1) : (i+1)*(nprime+1)]
 		start := i * l
@@ -123,7 +143,7 @@ func fftMul(stk *stack, z, x, y nat) nat {
 	inverseFFT(Ap, K, 2*Mp, nprime, T)
 
 	// division of terms after inverse fft
-	for i = 0; i < K; i++ {
+	for i := 0; i < K; i++ {
 		clear(Bp[i])
 		mul2ExpMod(Bp[i], Ap[i], 2*Nprime-k, nprime)
 		if Bp[i][nprime] != 0 {
@@ -141,7 +161,7 @@ func fftMul(stk *stack, z, x, y nat) nat {
 	pla := l*(K-1) + nprime + 1
 	p := A[:pla]
 	clear(p)
-	i = K - 1
+	i := K - 1
 	sh := l * i
 	for ; i >= 0; i-- {
 		t := p[sh:]
