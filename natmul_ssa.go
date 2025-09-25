@@ -75,7 +75,8 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	nprime := Nprime / _W
 
 	// divide Nprime to 2^k terms.
-	// 2^(Mp*K) mod 2^Nprime+1 = -1. 2^(2*Mp*K) mod 2^Nprime+1 = -1.
+	// 2^(Mp*K)   mod 2^Nprime+1 = -1
+	// 2^(2*Mp*K) mod 2^Nprime+1 = -1
 	Mp := Nprime >> uint(k)
 
 	A := nat(nil).make(K * (nprime + 1)) // storage for fft
