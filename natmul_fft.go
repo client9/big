@@ -49,7 +49,7 @@ func fftMulK(stk *stack, k int, z, x, y nat) nat {
 
 	n := len(x) + len(y)
 	n = 1 + ((n - 1) >> uint(k)) // ceil(n/2ᵏ)
-	n <<= uint(k)
+	n <<= uint(k)                // ceil(n/2ᵏ) * 2ᵏ
 
 	z = z.make(n)
 	N := n * _W       // total bits of z
