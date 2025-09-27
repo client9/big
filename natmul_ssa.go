@@ -2,6 +2,7 @@ package big
 
 import (
 	"fmt"
+	"sync"
 )
 
 // A. Schönhage and V. Strassen, "Schnelle Multiplikation großer Zahlen",
@@ -106,7 +107,7 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	K := 1 << uint(k) // K=2ᵏ
 
 	// Get convolution order for FFT
-	fftOrder := fftOrderK(k)
+	fftOrder := fftOrderK(16)
 
 	// compute n such that:
 	//
@@ -231,7 +232,12 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	return z.norm()
 }
 
-func fftOrderK(k int) [][]int {
+var (
+	fftOrderAry [][]int
+	fftOnce     sync.Once
+)
+
+func fftGenerateOrderK(k int) [][]int {
 	// get order of terms of fft.
 	//   fft[0]: 0 (not used)
 	//   fft[1]: 0 1
@@ -250,6 +256,19 @@ func fftOrderK(k int) [][]int {
 		}
 	}
 	return fftOrder
+}
+
+func fftOrderK(k int) [][]int {
+	const kmax = 20
+	fftOnce.Do(func() {
+		fftOrderAry = fftGenerateOrderK(kmax)
+	})
+	if k <= kmax {
+		return fftOrderAry
+	}
+
+	// possible but unlikely
+	return fftGenerateOrderK(k)
 }
 
 // calculate FFT of Ap.
