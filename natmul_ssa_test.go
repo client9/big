@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+func TestSSADump(t *testing.T) {
+	ssaDump(10000)
+}
+
 func randnat(rnd *rand.Rand, n int) nat {
 	v := make([]Word, n)
 	for i := range v {
