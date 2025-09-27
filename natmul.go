@@ -67,12 +67,8 @@ func (z nat) mul(stk *stack, x, y nat) nat {
 
 	// Use Schönhage-Strassen Algorithm (SSA)
 
-	// debateable if this is useful for SSA
+	// debateable if using a nat stack is worthwhile
 	// (in current form)
-	if stk == nil {
-		stk = getStack()
-		defer stk.free()
-	}
 	return ssaMul(stk, z, x, y)
 }
 
