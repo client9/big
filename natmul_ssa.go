@@ -100,6 +100,7 @@ func ssaDump(n int) {
 	fmt.Println("nprimp", nprime, "words")
 	fmt.Println("Mp", Mp, "Nprime = Mp * 2ᵏ")
 	fmt.Println("len(A)", K*(nprime+1), "words")
+	fmt.Println("tmp", 2*(nprime+1), "words")
 }
 
 func ssaMulK(stk *stack, k int, z, x, y nat) nat {
@@ -107,7 +108,7 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	K := 1 << uint(k) // K=2ᵏ
 
 	// Get convolution order for FFT
-	fftOrder := fftOrderK(16)
+	fftOrder := fftOrderK(k)
 
 	// compute n such that:
 	//
@@ -145,11 +146,14 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	// Nprime = Mp * 2ᵏ
 	Mp := Nprime >> uint(k)
 
-	A := nat(nil).make(K * (nprime + 1)) // storage for fft
-	B := nat(nil).make(K * (nprime + 1))
+	// allocation nat directly instead of "nat(nil).make" which
+	// adds 4 extra words at the end.
+	A := make(nat, K*(nprime+1))
+	B := make(nat, K*(nprime+1))
+	T := make(nat, 2*(nprime+1))
+
 	Ap := make([]nat, K)
 	Bp := make([]nat, K)
-	T := nat(nil).make(2 * (nprime + 1)) // temporary storage
 
 	// Extend x,y to N bits then decompose it to K=2ᵏ terms
 	// Each Ap[i] is a slice into A, with nprime+1 words
@@ -175,6 +179,8 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	fftDirect(Bp, K, fftOrder, k, 2*Mp, nprime, 1, T)
 
 	// term multiplications (mod 2^Nprime+1)
+	//  Ap[i] * Bp[i]
+	//
 	tp := T[:2*nprime]
 	for i := range K {
 		var cc Word
@@ -183,7 +189,7 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 		//
 		// a*b mod 2ᴺ+1
 		//
-		tp.mul(stk, a[:nprime], b[:nprime])
+		tp.mul(nil, a[:nprime], b[:nprime])
 		if a[nprime] != 0 {
 			cc = addVV(tp[nprime:], tp[nprime:], b[:nprime])
 		}
@@ -283,12 +289,12 @@ func fftOrderK(k int) [][]int {
 // let A              = [a0 a1 a2 ... a(K-1)]
 // let  W[K,t]        =
 //
-//	     | w[0,t]  w[1,t]  w[2,t]  w[3,t]    ...  w[K-1,t]         |
-//	     | w[0,t]  w[2,t]  w[4,t]  w[6,t]    ...  w[2K-2,t]        |
-//		| w[0,t]  w[3,t]  w[6,t]  w[9,t]    ...  w[3K-3,t]        |
-//		|             ...                                         |
-//		|             ...                                         |
-//		| w[0,t] w[K-1,t] w[2K-2,t] w[3K-3,t]... w[(K-1)(K-1),t]  |
+//	| w[0,t]  w[1,t]  w[2,t]  w[3,t]    ...  w[K-1,t]         |
+//	| w[0,t]  w[2,t]  w[4,t]  w[6,t]    ...  w[2K-2,t]        |
+//	| w[0,t]  w[3,t]  w[6,t]  w[9,t]    ...  w[3K-3,t]        |
+//	|             ...                                         |
+//	|             ...                                         |
+//	| w[0,t] w[K-1,t] w[2K-2,t] w[3K-3,t]... w[(K-1)(K-1),t]  |
 //
 // then FFT(A,K,t) = A * W[K,t]=   [y0   y1   y2   y3  ...  y(K-1)]
 //
