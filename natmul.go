@@ -33,46 +33,47 @@ func (z nat) mul(stk *stack, x, y nat) nat {
 	}
 	z = z.make(m + n)
 
-	//
-	// TODO: This set of conditionals for basic, karatsuba, ssa
-	// need to be redone so we be slot in other algorithms
-	// Karatsuba is somewhat split into two parts
-	//
-
 	// use basic multiplication if the numbers are small
 	if n < karatsubaThreshold {
 		basicMul(z, x, y)
 		return z.norm()
 	}
 
+	// use karatsuba
+	if ssaThreshold == 0 || n < ssaThreshold {
+
+		if stk == nil {
+			stk = getStack()
+			defer stk.free()
+		}
+
+		// Let x = x1:x0 where x0 is the same length as y.
+		// Compute z = x0*y and then add in x1*y in sections
+		// if needed.
+		karatsuba(stk, z[:2*n], x[:n], y)
+
+		if n < m {
+			clear(z[2*n:])
+			defer stk.restore(stk.save())
+			t := stk.nat(2 * n)
+			for i := n; i < m; i += n {
+				t = t.mul(stk, x[i:min(i+n, len(x))], y)
+				addTo(z[i:], t)
+			}
+		}
+
+		return z.norm()
+	}
+
+	// Use Schönhage-Strassen Algorithm (SSA)
+
+	// debateable if this is useful for SSA
+	// (in current form)
 	if stk == nil {
 		stk = getStack()
 		defer stk.free()
 	}
-
-	// Use Schönhage-Strassen Algorithm (SSA)
-	// Turn off with threshold of 0
-	if ssaThreshold > 0 && n >= ssaThreshold {
-		z = ssaMul(stk, z, x, y)
-		return z
-	}
-
-	// Let x = x1:x0 where x0 is the same length as y.
-	// Compute z = x0*y and then add in x1*y in sections
-	// if needed.
-	karatsuba(stk, z[:2*n], x[:n], y)
-
-	if n < m {
-		clear(z[2*n:])
-		defer stk.restore(stk.save())
-		t := stk.nat(2 * n)
-		for i := n; i < m; i += n {
-			t = t.mul(stk, x[i:min(i+n, len(x))], y)
-			addTo(z[i:], t)
-		}
-	}
-
-	return z.norm()
+	return ssaMul(stk, z, x, y)
 }
 
 // Operands that are shorter than basicSqrThreshold are squared using
