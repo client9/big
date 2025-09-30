@@ -168,13 +168,10 @@ func (f *ssa) init(n, k int) {
 	f.Ap = make([]nat, K)
 	f.Bp = make([]nat, K)
 
-	if true {
-		destChunkLen := f.nprime + 1
-		for i, destChunkStart := 0, 0; i < len(f.Ap); i, destChunkStart = i+1, destChunkStart+destChunkLen {
-			f.Ap[i] = f.A[destChunkStart : destChunkStart+destChunkLen]
-			f.Bp[i] = f.B[destChunkStart : destChunkStart+destChunkLen]
-			//destChunkStart += destChunkLen
-		}
+	chunkLen := f.nprime + 1
+	for i, start := 0, 0; i < len(f.Ap); i, start = i+1, start+chunkLen {
+		f.Ap[i] = f.A[start : start+chunkLen]
+		f.Bp[i] = f.B[start : start+chunkLen]
 	}
 }
 
@@ -184,20 +181,9 @@ func (f *ssa) decompose(a nat, ap []nat, x nat) {
 	// Loop putting l words of x into Ap[i]
 	//
 
-	srcChunkStart := 0
-	srcChunkLen := f.l
-
-	//destChunkStart := 0
-	//destChunkLen := f.nprime + 1
-	for i := range len(ap) {
-		//ap[i] = a[destChunkStart : destChunkStart+destChunkLen]
-		if srcChunkStart < len(x) {
-			end := min(srcChunkStart+srcChunkLen, len(x))
-			copy(ap[i], x[srcChunkStart:end])
-		} // else Ap[i] is all zeros
-
-		srcChunkStart += srcChunkLen
-		//destChunkStart += destChunkLen
+	for i, start := 0, 0; i < len(ap) && start < len(x); i, start = i+1, start+f.l {
+		end := min(start+f.l, len(x))
+		copy(ap[i], x[start:end])
 	}
 }
 
