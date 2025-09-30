@@ -25,7 +25,7 @@ import (
 
 // ssaThreshold is minimum number of words needed in the product
 // for this algorithm to be used.
-var ssaThreshold = 1000
+var ssaThreshold = 2500
 
 // ssaMul performs the Schönhage-Strassen algorithm computing
 //
@@ -66,6 +66,7 @@ func ssaMulParam(n int) (k int) {
 }
 
 func ssaDump(n int) {
+	//fmt.Println("_W", _W)
 	fmt.Println("n initial", n)
 
 	k := ssaMulParam(n)
@@ -112,6 +113,7 @@ func ssaMulVector(ap, bp []nat, n int, k int) {
 	N := n * _W       // total bits of z, output
 	M := N >> uint(k) // divide N to 2ᵏ terms and per part is M bits
 	l := n >> uint(k) // per term has l words
+	fmt.Printf("N,M,l=%d,%d,%d\n", N, M, l)
 	// get prime for fft which is 2^Nprime+1.
 
 	// maxLK is almost always K
@@ -325,11 +327,15 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 	//
 	for i := range K {
 		Ap[i] = A[i*(nprime+1) : (i+1)*(nprime+1)]
+
+		//		fmt.Println("SLICE: ", i*(nprime+1), i*(nprime+1))
+
 		Bp[i] = B[i*(nprime+1) : (i+1)*(nprime+1)]
 		start := i * l
 		if start < len(x) {
 			end := min(start+l, len(x))
 			copy(Ap[i], x[start:end])
+			// fmt.Println("SLICE: ", start, end)
 		} // else Ap[i] is all zeros
 		if start < len(y) {
 			end := min(start+l, len(y))

@@ -6,8 +6,89 @@ import (
 	"testing"
 )
 
+func myK(z, x, y nat) nat {
+	m := len(x)
+	n := len(y)
+	z = z.make(m + n)
+
+	stk := getStack()
+	defer stk.free()
+
+	// Let x = x1:x0 where x0 is the same length as y.
+	// Compute z = x0*y and then add in x1*y in sections
+	// if needed.
+	karatsuba(stk, z[:2*n], x[:n], y)
+
+	if n < m {
+		clear(z[2*n:])
+		defer stk.restore(stk.save())
+		t := stk.nat(2 * n)
+		for i := n; i < m; i += n {
+			t = t.mul(stk, x[i:min(i+n, len(x))], y)
+			addTo(z[i:], t)
+		}
+	}
+
+	return z.norm()
+}
+
 func TestSSADump(t *testing.T) {
-	ssaDump(10000)
+	ssaDump(1000000)
+}
+
+func BenchmarkBigOne(b *testing.B) {
+	const nwords = 100000
+	x := rndNat(nwords)
+	y := rndNat(nwords)
+
+	// size it
+	z := nat{}.mul(nil, x, y)
+
+	b.Run("SSA1", func(b *testing.B) {
+		for b.Loop() {
+			ssaMul(nil, z, x, y)
+		}
+	})
+	b.Run("SSA2", func(b *testing.B) {
+		for b.Loop() {
+			ssaMul2(z, x, y)
+		}
+	})
+}
+
+func TestBigOne(t *testing.T) {
+	t.Skip()
+	fmt.Println("IN BIGONE")
+	const nwords = 500000
+	x := rndNat(nwords)
+	y := rndNat(nwords)
+
+	//z0 := nat{}
+	//z0 = z0.mul(nil, x, y)
+
+	//z0 = myK(z0, x, y)
+	//z0 = testMul(x,y)
+	fmt.Println("----")
+	z1 := nat{}
+	z1 = ssaMul(nil, z1, x, y)
+
+	fmt.Println("----")
+	z2 := nat{}
+	z2 = ssaMul2(z2, x, y)
+	/*
+		if z0.cmp(z1) != 0 {
+			t.Errorf("Z0 != Z1")
+		}
+		if z0.cmp(z2) != 0 {
+			t.Errorf("Z0 != Z2")
+		}
+	*/
+	if len(z1) != len(z2) {
+		t.Errorf("Got different len")
+	}
+	if z1.cmp(z2) != 0 {
+		t.Errorf("Z1 != Z2")
+	}
 }
 
 func randnat(rnd *rand.Rand, n int) nat {
@@ -49,9 +130,10 @@ func benchmarkFFTk(b *testing.B, nwords int, k int) {
 // 4000000 - 15
 // 8000000 - 15
 func BenchmarkFFTK(b *testing.B) {
-	n := 8500000
-	for k := 13; k < 20; k++ {
-		b.Run(fmt.Sprintf("%d", k), func(b *testing.B) {
+	n := 1 << 21
+	for k := 8; k < 16; k++ {
+		b.Run(fmt.Sprintf("%d;k=%d", n, k), func(b *testing.B) {
+
 			benchmarkFFTk(b, n, k)
 		})
 	}
@@ -69,7 +151,7 @@ func FuzzNatMulFFT(f *testing.F) {
 		a := randnat(r, r.IntN(100))
 		b := randnat(r, r.IntN(100))
 		z := nat{}
-		z = ssaMul(nil, z, a, b)
+		z = ssaMul2(z, a, b)
 		if z.cmp(testMul(a, b)) != 0 {
 			t.Errorf("%s x %s failure", a.String(), b.String())
 		}
