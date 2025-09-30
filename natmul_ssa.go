@@ -403,7 +403,7 @@ func ssaMulK(stk *stack, k int, z, x, y nat) nat {
 		//
 		//
 		copy(z, p[:len(z)])
-		return z.norm()
+		return z
 	}
 }
 
@@ -505,20 +505,16 @@ func fftDirect(Ap []nat, K int, ll [][]int, layer int, omega int, n int, inc int
 
 	lk := ll[layer]
 	K2 := K >> 1
-	fftDirect(Ap, K2, ll, layer-1, 2*omega, n, inc*2, tp)
-	fftDirect(Ap[inc:], K2, ll, layer-1, 2*omega, n, inc*2, tp)
+	fftDirect(Ap, K2, ll, layer-1, 2*omega, n, 2*inc, tp)
+	fftDirect(Ap[inc:], K2, ll, layer-1, 2*omega, n, 2*inc, tp)
 
-	for j := range K2 {
+	for j, start := 0, 0; j < K2; j, start = j+1, start+2*inc {
 		// lk[2*j] is the lower half of the coefficient.
 		// This enables DFT to be arranged in order of fft to
 		// facilitate the calculation of inverse fft
-		fermatMul2Exp(tp, Ap[inc], lk[2*j]*omega, n)
-		fermatSub(Ap[inc], Ap[0], tp, n)
-		fermatAdd(Ap[0], Ap[0], tp, n)
-
-		if j < K2-1 {
-			Ap = Ap[2*inc:]
-		}
+		fermatMul2Exp(tp, Ap[start+inc], lk[2*j]*omega, n)
+		fermatSub(Ap[start+inc], Ap[start], tp, n)
+		fermatAdd(Ap[start], Ap[start], tp, n)
 	}
 }
 
@@ -549,10 +545,9 @@ func fftInverse(Ap []nat, K int, omega int, n int, tp nat) {
 
 	for j := range K2 {
 		// 2^x = - 2^(2*Nprime-x) (mod 2^Nprime+1)
-		fermatMul2Exp(tp, Ap[K2], 2*n*_W-j*omega, n)
-		fermatSub(Ap[K2], Ap[0], tp, n)
-		fermatAdd(Ap[0], Ap[0], tp, n)
-		Ap = Ap[1:]
+		fermatMul2Exp(tp, Ap[K2+j], 2*n*_W-j*omega, n)
+		fermatSub(Ap[K2+j], Ap[j], tp, n)
+		fermatAdd(Ap[j], Ap[j], tp, n)
 	}
 }
 
