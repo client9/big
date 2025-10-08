@@ -15,7 +15,7 @@ import (
 //    "A GMP-based Implementation of Schönhage-Strassen’s Large
 //       Integer Multiplication Algorithm"
 //    ISSAC '07: Proceedings of the 2007 international symposium on
-//        Symbolic and algebraic computation
+//        symbolic and algebraic computation
 //        https://dl.acm.org/doi/proceedings/10.1145/1277548
 //  Available at https://inria.hal.science/inria-00126462v2/document
 //
@@ -25,7 +25,7 @@ import (
 
 // ssaThreshold is minimum number of words needed in the product
 // for this algorithm to be used.
-var ssaThreshold = 1000
+var ssaThreshold = 2500
 
 // ssaMul performs the Schönhage-Strassen algorithm computing
 //
@@ -39,12 +39,13 @@ func ssaMul(stk *stack, z, x, y nat) nat {
 
 // ssaMulParam given product length, returns "k" for the FFT algorithm
 func ssaMulParam(n int) (k int) {
+	const ssat = 1000
 	// get best k for fft
 	const k0 int = 6
 	var lenTable = []int{
 		// this will be redone later
-		ssaThreshold, 2 * ssaThreshold, 4 * ssaThreshold,
-		8 * ssaThreshold, 24 * ssaThreshold, 72 * ssaThreshold,
+		ssat, 2 * ssat, 4 * ssat,
+		8 * ssat, 24 * ssat, 72 * ssat,
 	}
 
 	var i int
@@ -424,7 +425,7 @@ func fftGenerateOrderK(k int) [][]int {
 		fftOrder[i] = make([]int, 1<<uint(i))
 	}
 	for i := 1; i <= k; i++ {
-		Kt := 1 << uint(i-1)
+		Kt := 1 << (i - 1)
 		for j := 0; j < Kt; j++ {
 			fftOrder[i][j] = fftOrder[i-1][j] * 2
 			fftOrder[i][j+Kt] = 1 + fftOrder[i][j]
@@ -588,9 +589,11 @@ func fftInverse(Ap []nat, K int, omega int, n int, tp nat) {
 // 09 is the answer.
 //
 
-// fermatNormalize normalizes Fermat Numbers, mod 2^n + 1,
-// that occur in the process of arithmatic. It does not normalize an artbitrary input.
-func fermatNormalize(r nat, n int) nat {
+// fermatNormalize normalizes Fermat Numbers, mod 2^n*W + 1,
+// that occur in the process of arithmetic.
+// It does not normalize an artbitrary input.
+func fermatNormalize(r nat) nat {
+	n := len(r) - 1
 	if r[n] == 0 {
 		// already normal
 		return r
@@ -638,7 +641,7 @@ func fermatSub(r, a, b nat, n int) {
 // fermatDiv2Exp performs a/2ᵈ mod 2ᴺ+1
 func fermatDiv2Exp(r nat, a nat, d int, n int) {
 	fermatMul2Exp(r, a, 2*n*_W-d, n)
-	fermatNormalize(r, n)
+	fermatNormalize(r)
 }
 
 // fermatMul2Exp performs a*2ᵈ mod 2ᴺ+1, ensure 0 <= d <= 2*N.
@@ -712,4 +715,33 @@ func fermatMul2Exp(r nat, a nat, d int, n int) {
 	if r[n]&(_M^(_M>>1)) != 0 { // when r[n]<0
 		r[n] = addVW(r[:n], r[:n], 1)
 	}
+}
+
+func fermatNorm(z, x nat) Word {
+	var carry Word
+	n := len(z)
+	clear(z)
+
+	// occurs only in testing with very small numbers
+	if len(x) > 3*n {
+		x = x[:3*n]
+	}
+
+	// case when bigger than 2x
+	if m := len(x) - 2*n; m > 0 {
+		cc := addVV(z[:m], x[:m], x[2*n:])
+		carry = addVW(z[m:], x[m:n], cc)
+		carry -= subVV(z, z, x[n:2*n])
+		signedCarry := int(carry)
+		if signedCarry < 0 {
+			carry = addVW(z, z, 1)
+		}
+		return carry
+	}
+
+	// 2x or under
+	if carry = subVVRagged(z, x[:n], x[n:]); carry != 0 {
+		carry = addVW(z, z, 1)
+	}
+	return carry
 }
