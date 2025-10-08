@@ -69,7 +69,8 @@ func (z nat) mul(stk *stack, x, y nat) nat {
 
 	// debateable if using a nat stack is worthwhile
 	// (in current form)
-	return ssaMul(stk, z, x, y)
+	//return ssaMul(stk, z, x, y)
+	return ssaMul3(z, x, y)
 }
 
 // Operands that are shorter than basicSqrThreshold are squared using
